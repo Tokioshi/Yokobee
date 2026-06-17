@@ -1,0 +1,21 @@
+{
+    "Create Discord Guild Command": {
+        "scope": "javascript,typescript",
+        "prefix": "cc",
+        "body": [
+            "import { InteractionContextType, SlashCommandBuilder } from \"discord.js\";",
+            "import type { Command } from \"../../structures/Command.js\";",
+            "",
+            "export default {",
+            "\tdata: new SlashCommandBuilder()",
+            "\t\t.setName(\"$1\")",
+            "\t\t.setDescription(\"$2\")",
+            "\t\t.setContexts(InteractionContextType.Guild),",
+            "\tasync execute(interaction) {",
+            "\t\t$0",
+            "\t},",
+            "} satisfies Command;",
+        ],
+        "description": "Template untuk membuat Guild-Only Discord Slash Command",
+    },
+}
