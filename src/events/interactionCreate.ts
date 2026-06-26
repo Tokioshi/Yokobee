@@ -10,9 +10,13 @@ import {
     TextInputStyle,
     TextChannel,
     PermissionFlagsBits,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
 } from "discord.js";
 import type { Event } from "../structures/Event.js";
 import type { ExtendedClient } from "../structures/Client.js";
+import Ticket from "../models/Ticket.js";
 
 export default {
     name: Events.InteractionCreate,
@@ -32,14 +36,10 @@ export default {
             try {
                 await command.execute(interaction);
             } catch (error) {
-                console.error(
-                    `[Command Error] ${interaction.commandName}`,
-                    error,
-                );
+                console.error(`[Command Error] ${interaction.commandName}`, error);
 
                 const payload = {
-                    content:
-                        "Something went wrong while executing this command.",
+                    content: "Something went wrong while executing this command.",
                     ephemeral: true,
                 };
 
@@ -57,9 +57,7 @@ export default {
 
                 const suggest = interaction.fields.getTextInputValue("suggest");
 
-                const channel = interaction.client.channels.cache.get(
-                    "1516419487065444534",
-                );
+                const channel = interaction.client.channels.cache.get("1516419487065444534");
 
                 if (channel && channel instanceof TextChannel) {
                     channel.send({
@@ -99,9 +97,7 @@ export default {
                         embeds: [
                             new EmbedBuilder()
                                 .setColor("Green")
-                                .setDescription(
-                                    "Your suggestion has been recorded, thanks!",
-                                ),
+                                .setDescription("Your suggestion has been recorded, thanks!"),
                         ],
                     });
                     return;
@@ -121,26 +117,17 @@ export default {
             if (interaction.customId === "embed_create") {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-                const embed_color =
-                    interaction.fields.getTextInputValue("embed_color");
-                const embed_title =
-                    interaction.fields.getTextInputValue("embed_title");
-                const embed_description =
-                    interaction.fields.getTextInputValue("embed_description");
-                const embed_image =
-                    interaction.fields.getTextInputValue("embed_image");
+                const embed_color = interaction.fields.getTextInputValue("embed_color");
+                const embed_title = interaction.fields.getTextInputValue("embed_title");
+                const embed_description = interaction.fields.getTextInputValue("embed_description");
+                const embed_image = interaction.fields.getTextInputValue("embed_image");
 
-                if (
-                    !interaction.channel ||
-                    interaction.channel.type !== ChannelType.GuildText
-                ) {
+                if (!interaction.channel || interaction.channel.type !== ChannelType.GuildText) {
                     await interaction.editReply({
                         embeds: [
                             new EmbedBuilder()
                                 .setColor("Red")
-                                .setDescription(
-                                    "This channel is not a text channel.",
-                                ),
+                                .setDescription("This channel is not a text channel."),
                         ],
                     });
                     return;
@@ -200,15 +187,13 @@ export default {
                     embeds: [
                         new EmbedBuilder()
                             .setColor("Yellow")
-                            .setDescription(
-                                "Creating your ticket, please wait...",
-                            ),
+                            .setDescription("Creating your ticket, please wait..."),
                     ],
                     flags: MessageFlags.Ephemeral,
                 });
 
                 try {
-                    const channel = await interaction.guild?.channels
+                    await interaction.guild?.channels
                         .create({
                             name: `ticket-${interaction.user.username}`,
                             topic: `Created by ${interaction.user}`,
@@ -225,45 +210,85 @@ export default {
                             ],
                         })
                         .then(async (ch) => {
-                            await ch.send({
-                                embeds: [
-                                    new EmbedBuilder()
-                                        .setColor("#374dc2")
-                                        .setAuthor({
-                                            name: `Ticket ${interaction.user.username}`,
-                                            iconURL:
-                                                interaction.user.displayAvatarURL(
-                                                    {
-                                                        size: 512,
-                                                        extension: "png",
-                                                    },
-                                                ),
-                                        })
-                                        .setDescription(
-                                            `Here is the detail if your information that you just create:`,
-                                        )
-                                        .addFields(
-                                            {
-                                                name: "Issue",
-                                                value: `${interaction.fields.getTextInputValue("issue_description")}`,
-                                            },
-                                            {
-                                                name: "Additional",
-                                                value: `${interaction.fields.getTextInputValue("additional_information") ? interaction.fields.getTextInputValue("additional_information") : "None"}`,
-                                            },
-                                        )
-                                        .setFooter({ text: "Creation Time" })
-                                        .setTimestamp(),
-                                ],
+                            const issueInput =
+                                interaction.fields.getTextInputValue("issue_description");
+                            const additionalInput =
+                                interaction.fields.getTextInputValue("additional_information") ||
+                                "*No additional details provided.*";
+
+                            const today = new Date();
+                            const timeString = today.toLocaleTimeString("en-US", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: false,
                             });
+
+                            const embed = new EmbedBuilder()
+                                .setColor("#4e61d8")
+                                .setAuthor({
+                                    name: `Ticket Support — ${interaction.user.tag}`,
+                                    iconURL: interaction.user.displayAvatarURL({
+                                        size: 256,
+                                        extension: "png",
+                                    }),
+                                })
+                                .setDescription(
+                                    `Hello ${interaction.user}, thank you for reaching out! Your ticket has been logged into our system. Our support team will review your case shortly.\n\n` +
+                                        `> **Note:** Please make sure to provide clear context so we can assist you faster.`,
+                                )
+                                .addFields(
+                                    {
+                                        name: "📌 Detailed Issue / Report",
+                                        value: `\`\`\`text\n${issueInput}\n\`\`\``,
+                                        inline: false,
+                                    },
+                                    {
+                                        name: "🔍 Additional Information",
+                                        value: `${additionalInput}`,
+                                        inline: false,
+                                    },
+                                )
+                                .setFooter({
+                                    text: `ID: ${interaction.user.id} • Registered • Today at ${timeString}`,
+                                    iconURL:
+                                        interaction.guild?.iconURL({
+                                            extension: "png",
+                                        }) ?? undefined,
+                                });
+
+                            const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                                new ButtonBuilder()
+                                    .setCustomId("complete")
+                                    .setLabel("Complete")
+                                    .setEmoji("✅")
+                                    .setStyle(ButtonStyle.Success),
+                                new ButtonBuilder()
+                                    .setCustomId("close")
+                                    .setLabel("Close")
+                                    .setEmoji("🔒")
+                                    .setStyle(ButtonStyle.Danger),
+                                new ButtonBuilder()
+                                    .setCustomId("claim")
+                                    .setLabel("Claim Ticket")
+                                    .setEmoji("🙋")
+                                    .setStyle(ButtonStyle.Primary),
+                            );
+                            await ch.send({
+                                embeds: [embed],
+                                components: [row.toJSON()],
+                            });
+
+                            await Ticket.findOneAndUpdate(
+                                { channelId: ch.id },
+                                { ownerId: interaction.user.id },
+                                { upsert: true, returnDocument: "after" },
+                            );
 
                             interaction.editReply({
                                 embeds: [
                                     new EmbedBuilder()
                                         .setColor("Green")
-                                        .setDescription(
-                                            `Your ticket is ready at ${ch}!`,
-                                        ),
+                                        .setDescription(`Your ticket is ready at ${ch}!`),
                                 ],
                             });
                         });
@@ -274,9 +299,7 @@ export default {
                         embeds: [
                             new EmbedBuilder()
                                 .setColor("Red")
-                                .setDescription(
-                                    "Something went wrong when creating the ticket.",
-                                ),
+                                .setDescription("Something went wrong when creating the ticket."),
                         ],
                     });
                     return;
@@ -287,17 +310,12 @@ export default {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
                 const [, messageId] = interaction.customId.split(":");
-                const embed_color = interaction.fields
-                    .getTextInputValue("embed_color")
-                    .trim();
-                const embed_title = interaction.fields
-                    .getTextInputValue("embed_title")
-                    .trim();
+                const embed_color = interaction.fields.getTextInputValue("embed_color").trim();
+                const embed_title = interaction.fields.getTextInputValue("embed_title").trim();
                 const embed_description = interaction.fields
                     .getTextInputValue("embed_description")
                     .trim();
-                const embed_image =
-                    interaction.fields.getTextInputValue("embed_image") || null;
+                const embed_image = interaction.fields.getTextInputValue("embed_image") || null;
 
                 if (!/^#?[0-9A-F]{6}$/i.test(embed_color)) {
                     await interaction.editReply({
@@ -326,8 +344,7 @@ export default {
                 let targetMessage;
 
                 try {
-                    targetMessage =
-                        await interaction.channel?.messages.fetch(messageId);
+                    targetMessage = await interaction.channel?.messages.fetch(messageId);
                 } catch (error) {
                     await interaction.editReply({
                         embeds: [
@@ -409,6 +426,84 @@ export default {
                             ),
                         ),
                 );
+            }
+
+            if (interaction.customId === "close") {
+                await interaction.reply({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor("Yellow")
+                            .setDescription("Deleting the ticket..."),
+                    ],
+                });
+
+                if (interaction.channel) {
+                    interaction.channel.delete().then(async (ch) => {
+                        try {
+                            await Ticket.deleteOne({ channelId: ch.id });
+                        } catch (error) {
+                            console.error("Failed to delete ticket record:", error);
+                        }
+                    });
+                }
+            }
+
+            if (interaction.customId === "claim") {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+                const ticket = await Ticket.findOne({
+                    channelId: interaction.channelId,
+                });
+
+                if (!ticket) {
+                    interaction.editReply({
+                        embeds: [
+                            new EmbedBuilder()
+                                .setColor("Red")
+                                .setDescription(
+                                    "Cannot find the ticket data. Please report to staff.",
+                                ),
+                        ],
+                    });
+                    return;
+                }
+
+                if (ticket.ownerId === interaction.user.id) {
+                    interaction.editReply({
+                        embeds: [
+                            new EmbedBuilder()
+                                .setColor("Red")
+                                .setDescription("You cannot claim your own ticket!"),
+                        ],
+                    });
+                    return;
+                }
+
+                const newRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId("complete")
+                        .setLabel("Complete")
+                        .setEmoji("✅")
+                        .setStyle(ButtonStyle.Success),
+
+                    new ButtonBuilder()
+                        .setCustomId("close")
+                        .setLabel("Close")
+                        .setEmoji("🔒")
+                        .setStyle(ButtonStyle.Danger),
+                );
+
+                await interaction.update({
+                    components: [newRow],
+                });
+
+                await interaction.followUp({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor("Yellow")
+                            .setDescription(`This ticket has been claimed by ${interaction.user}!`),
+                    ],
+                });
             }
         }
     },
