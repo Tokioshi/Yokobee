@@ -14,4 +14,5 @@ export const env = {
     token: getEnv("DISCORD_TOKEN"),
     clientId: getEnv("CLIENT_ID"),
     guildId: getEnv("GUILD_ID"),
+    mongoURL: getEnv("MONGO_DB"),
 };
